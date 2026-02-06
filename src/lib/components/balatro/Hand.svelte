@@ -2,13 +2,21 @@
     import { T } from "@threlte/core";
     import Card from "./Card.svelte";
 
-    export let cards = [
-        { rank: "A", suit: "♠" },
-        { rank: "K", suit: "♥" },
-        { rank: "Q", suit: "♦" },
-        { rank: "J", suit: "♣" },
-        { rank: "10", suit: "♠" },
-    ];
+    interface Props {
+        cards?: { rank: string; suit: string }[];
+        cardScale?: number;
+    }
+
+    let {
+        cards = [
+            { rank: "A", suit: "♠" },
+            { rank: "K", suit: "♥" },
+            { rank: "Q", suit: "♦" },
+            { rank: "J", suit: "♣" },
+            { rank: "10", suit: "♠" },
+        ],
+        cardScale = 1.0
+    }: Props = $props();
 
     // Config for the arc
     const spacing = 1.2;
@@ -25,7 +33,7 @@
         {@const rotZ = -angle}
 
         <T.Group position={[x, y, i * 0.01]} rotation.z={rotZ}>
-            <Card rank={card.rank} suit={card.suit} index={i} />
+            <Card rank={card.rank} suit={card.suit} index={i} scale={cardScale} />
         </T.Group>
     {/each}
 </T.Group>

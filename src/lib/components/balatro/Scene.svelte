@@ -4,6 +4,26 @@
     import Background from "./Background.svelte";
     import Hand from "./Hand.svelte";
 
+    interface Props {
+        spinSpeed?: number;
+        spinAmount?: number;
+        contrast?: number;
+        spinRotation?: number;
+        pixelFilter?: number;
+        uvScale?: number;
+        cardScale?: number;
+    }
+
+    let {
+        spinSpeed = 0.75,
+        spinAmount = 1.5,
+        contrast = 2.0,
+        spinRotation = 0.5,
+        pixelFilter = 3500.0,
+        uvScale = 125.0,
+        cardScale = 1.0
+    }: Props = $props();
+
     interactivity();
 
     const { camera } = useThrelte();
@@ -17,8 +37,7 @@
     <OrbitControls
         enableZoom={false}
         enablePan={false}
-        maxPolarAngle={Math.PI / 1.5}
-        minPolarAngle={Math.PI / 3}
+        enableRotate={false}
     />
 </T.PerspectiveCamera>
 
@@ -26,9 +45,14 @@
 <T.AmbientLight intensity={0.5} />
 
 <!-- Background Shader -->
-<Background />
+<Background
+    {spinSpeed}
+    {spinAmount}
+    {contrast}
+    {spinRotation}
+    {pixelFilter}
+    {uvScale}
+/>
 
 <!-- Game Layer -->
-<Hand />
-
-<!-- Debug Cube to verify rendering (Removed) -->
+<Hand {cardScale} />

@@ -1,22 +1,60 @@
 <script lang="ts">
-  import { T, useTask } from '@threlte/core';
-  import { Vector2, Color } from 'three';
+    import { T, useTask } from "@threlte/core";
+    import { Vector2, Color } from "three";
 
-  let time = 0;
-  
-  const uniforms = {
-    uTime: { value: 0 },
-    uResolution: { value: new Vector2(1, 1) },
-    uColor1: { value: new Color('#ff4d4d') }, // Bright Red (Balatro Red)
-    uColor2: { value: new Color('#0044ff') }  // Bright Blue for contrast
-  };
+    interface Props {
+        spinSpeed?: number;
+        spinAmount?: number;
+        contrast?: number;
+        spinRotation?: number;
+        pixelFilter?: number;
+        uvScale?: number;
+    }
 
-  useTask((delta) => {
-    time += delta;
-    uniforms.uTime.value = time;
-  });
+    let {
+        spinSpeed = 0.75,
+        spinAmount = 1.5,
+        contrast = 2.0,
+        spinRotation = 0.5,
+        pixelFilter = 3500.0,
+        uvScale = 125.0
+    }: Props = $props();
 
-  const vertexShader = `
+    let time = 0;
+
+    const uniforms = {
+        uTime: { value: 0 },
+        uColor1: { value: new Color("#ff0066") }, // Balatro Pink/Red
+        uColor2: { value: new Color("#00aaff") }, // Balatro Blue
+        uColor3: { value: new Color("#ffaa00") }, // Balatro Gold/Orange
+        uSpinRotation: { value: spinRotation },
+        uSpinSpeed: { value: spinSpeed },
+        uSpinAmount: { value: spinAmount },
+        uContrast: { value: contrast },
+        uPolarCoordinates: { value: false },
+        uPolarCenter: { value: new Vector2(0.5, 0.5) },
+        uPolarZoom: { value: 1.0 },
+        uPolarRepeat: { value: 1.0 },
+        uPixelFilter: { value: pixelFilter },
+        uUvScale: { value: uvScale }
+    };
+
+    // Update uniforms when props change
+    $effect(() => {
+        uniforms.uSpinSpeed.value = spinSpeed;
+        uniforms.uSpinAmount.value = spinAmount;
+        uniforms.uContrast.value = contrast;
+        uniforms.uSpinRotation.value = spinRotation;
+        uniforms.uPixelFilter.value = pixelFilter;
+        uniforms.uUvScale.value = uvScale;
+    });
+
+    useTask((delta) => {
+        time += delta;
+        uniforms.uTime.value = time;
+    });
+
+    const vertexShader = `
     varying vec2 vUv;
     void main() {
       vUv = uv;
@@ -24,63 +62,82 @@
     }
   `;
 
-  const fragmentShader = `
+    const fragmentShader = `
     uniform float uTime;
     uniform vec3 uColor1;
     uniform vec3 uColor2;
+    uniform vec3 uColor3;
+    uniform float uSpinRotation;
+    uniform float uSpinSpeed;
+    uniform float uSpinAmount;
+    uniform float uContrast;
+    uniform bool uPolarCoordinates;
+    uniform vec2 uPolarCenter;
+    uniform float uPolarZoom;
+    uniform float uPolarRepeat;
+    uniform float uPixelFilter;
+    uniform float uUvScale;
+
     varying vec2 vUv;
 
-    // Simple pseudo-random noise
-    float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
+    const float SPIN_EASE = 1.0;
+    const float PI = 3.14159265359;
 
-    float noise(vec2 x) {
-      vec2 i = floor(x);
-      vec2 f = fract(x);
-      float a = hash(i);
-      float b = hash(i + vec2(1.0, 0.0));
-      float c = hash(i + vec2(0.0, 1.0));
-      float d = hash(i + vec2(1.0, 1.0));
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+    vec4 effect(vec2 screenSize, vec2 screenCoords) {
+      // Convert to UV coords (0-1) and floor for pixel effect
+      float pixel_size = length(screenSize.xy) / uPixelFilter;
+      vec2 uv = (floor(screenCoords.xy * (1.0 / pixel_size)) * pixel_size - 0.5 * screenSize.xy) / length(screenSize.xy);
+      float uv_len = length(uv);
+
+      // Adding in a center swirl, changes with time
+      float speed = (uSpinRotation * SPIN_EASE * 0.2) + 302.2;
+      float new_pixel_angle = (atan(uv.y, uv.x)) + speed - SPIN_EASE * 20.0 * (uSpinAmount * uv_len + (1.0 - uSpinAmount));
+      vec2 mid = (screenSize.xy / length(screenSize.xy)) / 2.0;
+      uv = vec2((uv_len * cos(new_pixel_angle) + mid.x), (uv_len * sin(new_pixel_angle) + mid.y)) - mid;
+
+      // Now add the paint effect to the swirled UV
+      uv *= uUvScale;
+      speed = uTime * uSpinSpeed;
+      vec2 uv2 = vec2(uv.x + uv.y);
+
+      for(int i = 0; i < 5; i++) {
+        uv2 += sin(max(uv.x, uv.y)) + uv;
+        uv += 0.5 * vec2(cos(5.1123314 + 0.353 * uv2.y + speed * 0.131121), sin(uv2.x - 0.113 * speed));
+        uv -= 1.0 * cos(uv.x + uv.y) - 1.0 * sin(uv.x * 0.711 - uv.y);
+      }
+
+      // Make the paint amount range from 0 - 2
+      float contrast_mod = (0.25 * uContrast + 0.5 * uSpinAmount + 1.2);
+      float paint_res = min(2.0, max(0.0, length(uv) * 0.035 * contrast_mod));
+      float c1p = max(0.0, 1.0 - contrast_mod * abs(1.0 - paint_res));
+      float c2p = max(0.0, 1.0 - contrast_mod * abs(paint_res));
+      float c3p = 1.0 - min(1.0, c1p + c2p);
+
+      vec4 ret_col = (0.3 / uContrast) * vec4(uColor1, 1.0) + (1.0 - 0.3 / uContrast) * (vec4(uColor1, 1.0) * c1p + vec4(uColor2, 1.0) * c2p + vec4(uColor3 * c3p, c3p));
+      return ret_col;
     }
 
-    float fbm(vec2 x) {
-      float v = 0.0;
-      float a = 0.5;
-      vec2 shift = vec2(100);
-      mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
-      for (int i = 0; i < 5; ++i) {
-        v += a * noise(x);
-        x = rot * x * 2.0 + shift;
-        a *= 0.5;
-      }
-      return v;
+    vec2 polar_coords(vec2 uv, vec2 center, float zoom, float repeat) {
+      vec2 dir = uv - center;
+      float radius = length(dir) * 2.0;
+      float angle = atan(dir.y, dir.x) * 1.0 / (PI * 2.0);
+      return mod(vec2(radius * zoom, angle * repeat), 1.0);
     }
 
     void main() {
-      vec2 p = vUv * 2.0 - 1.0;
-      float t = uTime * 0.2;
-      
-      // Swirl distortion
-      float r = length(p);
-      float angle = atan(p.y, p.x);
-      float f = fbm(vec2(r * 3.0 - t, angle * 2.0 + t));
-      
-      vec3 color = mix(uColor2, uColor1, f);
-      
-      // Vignette/Darken edges
-      color *= 1.0 - smoothstep(0.5, 1.5, r);
+      vec2 uv = vUv;
 
-      gl_FragColor = vec4(color, 1.0);
+      if (uPolarCoordinates) {
+        uv = polar_coords(vUv, uPolarCenter, uPolarZoom, uPolarRepeat);
+      }
+
+      vec2 screenSize = vec2(1.0, 1.0);
+      gl_FragColor = effect(screenSize, uv);
     }
   `;
 </script>
 
 <T.Mesh scale={100} position={[0, 0, -5]}>
-  <T.PlaneGeometry />
-  <T.ShaderMaterial
-    {vertexShader}
-    {fragmentShader}
-    {uniforms}
-  />
+    <T.PlaneGeometry />
+    <T.ShaderMaterial {vertexShader} {fragmentShader} {uniforms} />
 </T.Mesh>
