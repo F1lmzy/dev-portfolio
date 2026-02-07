@@ -2,6 +2,7 @@
     import { Canvas } from "@threlte/core";
     import Scene from "$lib/components/balatro/Scene.svelte";
     import CRTLayer from "$lib/components/balatro/CRTLayer.svelte";
+    import * as THREE from 'three';
 
     // Dev mode settings
     let showSettings = $state(false);
@@ -17,6 +18,31 @@
     // Card parameters
     let cardScale = $state(1.0);
 
+    // CRT Parameters
+    let scanlinesOpacity = $state(0.4);
+    let scanlinesWidth = $state(0.25);
+    let grilleOpacity = $state(0.3);
+    let pixelate = $state(true);
+    let roll = $state(true);
+    let rollSpeed = $state(8.0);
+    let rollSize = $state(15.0);
+    let rollVariation = $state(1.8);
+    let distortIntensity = $state(0.05);
+    let noiseOpacity = $state(0.4);
+    let noiseSpeed = $state(5.0);
+    let staticNoiseIntensity = $state(0.06);
+    let aberration = $state(0.03);
+    let brightness = $state(1.4);
+    let discolor = $state(true);
+    let warpAmount = $state(1.0);
+    let clipWarp = $state(false);
+    let vignetteIntensity = $state(0.4);
+    let vignetteOpacity = $state(0.5);
+    let resolutionScale = $state(1.0); // Multiplier for resolution
+
+    // Derived resolution vector
+    let resolution = $derived(new THREE.Vector2(640 * resolutionScale, 480 * resolutionScale));
+
     function resetToDefaults() {
         spinSpeed = 0.75;
         spinAmount = 1.5;
@@ -25,6 +51,27 @@
         pixelFilter = 3500.0;
         uvScale = 125.0;
         cardScale = 1.0;
+        
+        scanlinesOpacity = 0.4;
+        scanlinesWidth = 0.25;
+        grilleOpacity = 0.3;
+        pixelate = true;
+        roll = true;
+        rollSpeed = 8.0;
+        rollSize = 15.0;
+        rollVariation = 1.8;
+        distortIntensity = 0.05;
+        noiseOpacity = 0.4;
+        noiseSpeed = 5.0;
+        staticNoiseIntensity = 0.06;
+        aberration = 0.03;
+        brightness = 1.4;
+        discolor = true;
+        warpAmount = 1.0;
+        clipWarp = false;
+        vignetteIntensity = 0.4;
+        vignetteOpacity = 0.5;
+        resolutionScale = 1.0;
     }
 </script>
 
@@ -45,7 +92,28 @@
     </div>
 
     <!-- CRT Effects Layer -->
-    <CRTLayer />
+    <CRTLayer 
+        {scanlinesOpacity}
+        {scanlinesWidth}
+        {grilleOpacity}
+        {resolution}
+        {pixelate}
+        {roll}
+        {rollSpeed}
+        {rollSize}
+        {rollVariation}
+        {distortIntensity}
+        {noiseOpacity}
+        {noiseSpeed}
+        {staticNoiseIntensity}
+        {aberration}
+        {brightness}
+        {discolor}
+        {warpAmount}
+        {clipWarp}
+        {vignetteIntensity}
+        {vignetteOpacity}
+    />
 
     <!-- Settings Button -->
     <button
@@ -61,7 +129,7 @@
 
     <!-- Settings Panel -->
     {#if showSettings}
-        <div class="absolute bottom-4 left-16 z-50 bg-gray-900/95 text-white p-6 rounded-lg shadow-2xl border border-gray-700/50 backdrop-blur-sm w-80 max-h-[80vh] overflow-y-auto">
+        <div class="absolute bottom-4 left-16 z-50 bg-gray-900/95 text-white p-6 rounded-lg shadow-2xl border border-gray-700/50 backdrop-blur-sm w-96 max-h-[80vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-yellow-400">Dev Mode Settings</h2>
                 <button
@@ -165,6 +233,76 @@
                             bind:value={uvScale}
                             class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                         />
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CRT Settings -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-red-400 mb-3 uppercase tracking-wider">CRT Effect</h3>
+                
+                <div class="space-y-3">
+                    <div class="flex gap-4">
+                        <label class="flex items-center text-xs">
+                            <input type="checkbox" bind:checked={roll} class="mr-2" />
+                            Roll
+                        </label>
+                        <label class="flex items-center text-xs">
+                            <input type="checkbox" bind:checked={pixelate} class="mr-2" />
+                            Pixelate
+                        </label>
+                        <label class="flex items-center text-xs">
+                            <input type="checkbox" bind:checked={discolor} class="mr-2" />
+                            Discolor
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="flex justify-between text-xs mb-1">
+                            <span>Warp Amount</span>
+                            <span class="text-gray-400">{warpAmount.toFixed(2)}</span>
+                        </label>
+                        <input type="range" min="0" max="5" step="0.1" bind:value={warpAmount} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                        <label class="flex justify-between text-xs mb-1">
+                            <span>Scanlines Opacity</span>
+                            <span class="text-gray-400">{scanlinesOpacity.toFixed(2)}</span>
+                        </label>
+                        <input type="range" min="0" max="1" step="0.05" bind:value={scanlinesOpacity} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                        <label class="flex justify-between text-xs mb-1">
+                            <span>Grille Opacity</span>
+                            <span class="text-gray-400">{grilleOpacity.toFixed(2)}</span>
+                        </label>
+                        <input type="range" min="0" max="1" step="0.05" bind:value={grilleOpacity} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+                    
+                    <div>
+                        <label class="flex justify-between text-xs mb-1">
+                            <span>Vignette Opacity</span>
+                            <span class="text-gray-400">{vignetteOpacity.toFixed(2)}</span>
+                        </label>
+                        <input type="range" min="0" max="1" step="0.05" bind:value={vignetteOpacity} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                        <label class="flex justify-between text-xs mb-1">
+                            <span>Noise Opacity</span>
+                            <span class="text-gray-400">{noiseOpacity.toFixed(2)}</span>
+                        </label>
+                        <input type="range" min="0" max="1" step="0.05" bind:value={noiseOpacity} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                        <label class="flex justify-between text-xs mb-1">
+                            <span>Distort Intensity</span>
+                            <span class="text-gray-400">{distortIntensity.toFixed(3)}</span>
+                        </label>
+                        <input type="range" min="0" max="0.2" step="0.005" bind:value={distortIntensity} class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                     </div>
                 </div>
             </div>
